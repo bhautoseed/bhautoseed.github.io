@@ -7,6 +7,10 @@
             <input type="url" id="link">
         </label>
         <br>
+        start.gg api key: <label>
+            <input type="password" id="apikey">
+        </label>
+        <br>
         GameMode: <br>
         <label>
             <input type="radio" name="gamemode" id="gamemode" value="1" checked>
@@ -18,8 +22,15 @@
             2v2
         </label>
         <br>
-        start.gg api key: <label>
-            <input type="password" id="apikey">
+        Output Type: <br>
+        <label>
+            <input type="radio" name="output" id="output" value="1" checked>
+            csv
+        </label>
+        <br>
+        <label>
+            <input type="radio" name="output" id="output" value="2">
+            seed directly to start.gg (overwrites any current seeding)
         </label>
         <br>
         <button onclick="startSeeding(
@@ -27,6 +38,13 @@
             document.getElementById('apikey').value)">
             Seed</button>
         <p id="status">Status: not started</p>
+        <br><br><br>
+        To get a start.gg api key:<br>
+        1. Go to start.gg<br>
+        2. Click your profile icon in the bottom left and choose "Developer Settings"<br>
+        3. Press "Create new token"<br>
+        4. Give it a description and click save<br>
+        5. Copy your token to the "start.gg api key" entry above<br>
     </body>
     <script src="app.js"></script>
 </html>

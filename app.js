@@ -1,7 +1,7 @@
 
 async function startSeeding(link,apikey){
   document.getElementById('status').innerHTML = "Status: In progress..."
-  success = await seed(link,apikey)
+  success = await seed(link,apikey) //Main function that does things
   if(success){
     document.getElementById('status').innerHTML = "Status: Complete!"
     alert("Seeding complete!")
@@ -12,6 +12,8 @@ async function startSeeding(link,apikey){
 
 async function seed(link,apikey){
     gamemode = document.querySelector('input[name="gamemode"]:checked').value
+    output = document.querySelector('input[name="output"]:checked').value
+
     //If the start of the link doesnt match, end here
     //Uses regexp.test()
     if(!/^https:\/\/www.start.gg\/tournament\//.test(link)){
@@ -20,7 +22,7 @@ async function seed(link,apikey){
     }
     //converts link into start.gg slug and checks the link and apikey for errors
     //read getNumEntrants() comments for more info on error checking
-    numEntrants = await getNumEntrants(link.substring(21),apikey)
+    numEntrants = await getNumEntrants(link.substring(21),apikey,output)
     if(numEntrants == null){
         return false
     }
@@ -32,9 +34,11 @@ async function seed(link,apikey){
       return false
     }
 
+    const perPage = 150
+
     playerPR = []
     //Loops through every player in the event an finds their brawlhalla pr
-    for(i = 1 ; (i-1)*150 < numEntrants ; i++){
+    for(i = 1 ; (i-1)*perPage < numEntrants ; i++){
         const data = await getIDList(link.substring(21), i, apikey)
         if(data == null){
             alert(`Unknown start.gg api error: 1`)
@@ -42,6 +46,7 @@ async function seed(link,apikey){
         }
         try{
             for(j = 0 ; j < data.event.entrants.nodes.length ; j++){
+                document.getElementById('status').innerHTML = `Status: In progress... ${j+1 + (i-1)*perPage}/${numEntrants}`
                 const obj = data.event.entrants.nodes[j]
                 //Get 1v1 pr of start.gg user
                 if(gamemode == 1){
@@ -51,6 +56,7 @@ async function seed(link,apikey){
                     playerPR.push({
                         seedId: obj.seeds[0].id,
                         pr: pr,
+                        name:obj.name
                     })
                 }
                 //Get 2v2 pr of start.gg users and adds them for a total pr
@@ -64,6 +70,7 @@ async function seed(link,apikey){
                     playerPR.push({
                         seedId: obj.seeds[0].id,
                         pr: pr+pr2,
+                        name:obj.name
                     })
                 }
             }
@@ -81,10 +88,40 @@ async function seed(link,apikey){
       seedNum: index+1,
     }))
 
+    if(output == 2){ //If the desired output is to seed the tournament, this is where that happens
+      result = await doSeeding(phaseId, seedMapping, apikey) 
+      return true
+    }else{ //Otherwise, convert the output to a csv and send it to the user
+      csvString = "SeedNum,SeedID,Name\n"
+      for(i = 0 ; i < playerPR.length ; i++){
+        csvString+=`${i+1},${playerPR[i].seedId},${playerPR[i].name}\n`
+      }
+      let csvBlob = new Blob([csvString], { type: 'text/csv' });
+      // Create a temporary anchor element
+      var tempLink = document.createElement('a');
 
-    result = await doSeeding(phaseId, seedMapping, apikey)
-    console.log(result)
-    return true
+      // Create a URL for the Blob
+      var url = URL.createObjectURL(csvBlob);
+
+      // Set the href attribute to the Blob URL
+      tempLink.href = url;
+
+      // Set the download attribute with the desired filename
+      tempLink.download = 'output.csv';
+
+      // Append the anchor element to the body
+      document.body.appendChild(tempLink);
+
+      // Trigger a click on the anchor element
+      tempLink.click();
+
+      // Remove the temporary anchor element from the DOM
+      document.body.removeChild(tempLink);
+
+      // Revoke the Blob URL to free up resources
+      URL.revokeObjectURL(url);
+      return true
+    }
 }
 
 //Queries the brawlhalla esports api for a specific start.gg player
@@ -96,7 +133,7 @@ async function queryPlayer(player, gamemode) {
 
 //Gets the number of entrants in a tournament for future use
 //Additionally checks to make sure apikey and tournament link are valid
-async function getNumEntrants(slug, apikey) {
+async function getNumEntrants(slug, apikey, output) {
     query = `query EventQuery ($slug: String){
         event(slug: $slug){
           numEntrants
@@ -129,7 +166,7 @@ async function getNumEntrants(slug, apikey) {
         return null
     }
     //user admin check: gives an error if the apikey doesnt have permissions to seed the event
-    if(data.data.event.tournament == null || data.data.event.tournament.admins == null){
+    if(output == 2 && (data.data.event.tournament == null || data.data.event.tournament.admins == null)){
         alert("Your APIKEY doesn't have permissions to seed the event\nMake sure your account is an admin in the tournament")
         return null
     }
@@ -168,21 +205,22 @@ async function getPhaseId(slug,apikey){
 //Gets a list of player IDs and their associated seed IDs
 async function getIDList(slug, page, apikey) {
     query = `query EventQuery ($slug: String, $page:Int){
-        event(slug: $slug){
-          entrants(query:{perPage:150,page:$page}){
-            nodes{
-              seeds{
+      event(slug: $slug){
+        entrants(query:{perPage:150,page:$page}){
+          nodes{
+            name
+            seeds{
+              id
+            }
+            participants{
+              player{
                 id
-              }
-              participants{
-                player{
-                  id
-                }
               }
             }
           }
         }
-      }`;
+      }
+    }`;
     variables = {
       "slug": slug,
       "page": page
