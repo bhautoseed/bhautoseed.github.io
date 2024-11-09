@@ -10,7 +10,7 @@ async function startSeeding(link,apikey){
   }
 }
 
-async function getPRs(){
+async function getPRs(apikey){
     gamemode = document.querySelector('input[name="gamemode"]:checked').value
     region = document.querySelector('input[name="region"]:checked').value
 
