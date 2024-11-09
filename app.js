@@ -22,7 +22,7 @@ async function seed(link,apikey){
     }
     //converts link into start.gg slug and checks the link and apikey for errors
     //read getNumEntrants() comments for more info on error checking
-    numEntrants = await getNumEntrants(link.substring(21),apikey,output)
+    numEntrants = await verifyTournamentLink(link.substring(21),apikey,output)
     if(numEntrants == null){
         return false
     }
@@ -133,7 +133,7 @@ async function queryPlayer(player, gamemode) {
 
 //Gets the number of entrants in a tournament for future use
 //Additionally checks to make sure apikey and tournament link are valid
-async function getNumEntrants(slug, apikey, output) {
+async function verifyTournamentLink(slug, apikey, output) {
     query = `query EventQuery ($slug: String){
         event(slug: $slug){
           numEntrants
