@@ -10,6 +10,79 @@ async function startSeeding(link,apikey){
   }
 }
 
+async function getPRs(){
+    gamemode = document.querySelector('input[name="gamemode"]:checked').value
+    region = document.querySelector('input[name="region"]:checked').value
+
+    const startValue = parseFloat(document.getElementById("startpage").value);
+    const endValue = parseFloat(document.getElementById("endpage").value);
+
+    document.getElementById("startbutton").disabled = true
+
+    csvString = "Rank,playerid,discriminator,Name,Earnings,Top 8,Top 32,Gold Medals,Silver Medals,Bronze Medals\n"
+
+    for(let page = startValue; page <= endValue; page++){
+      let res = await queryPRList(gamemode, region, page)
+      let prList = res.prPlayers
+      let i = 0
+      for(let player of prList){
+        try{
+          let discrim = await getDiscrim(player.playerId, apikey)
+          csvString+=`${player.powerRanking},${player.playerId},${discrim},${player.playerName},${player.earnings},${player.top8},${player.top32},${player.gold},${player.silver},${player.bronze}\n`
+        }catch(error){
+          csvString+=`error\n`
+        }
+        i++
+        document.getElementById('status').innerHTML = `Status: ${i}/${(endValue-startValue+1)*50}`
+        await delay(1000*6/8)
+      }
+    }
+    let csvBlob = new Blob([csvString], { type: 'text/csv' });
+    // Create a temporary anchor element
+    var tempLink = document.createElement('a');
+
+    // Create a URL for the Blob
+    var url = URL.createObjectURL(csvBlob);
+
+    // Set the href attribute to the Blob URL
+    tempLink.href = url;
+
+    // Set the download attribute with the desired filename
+    tempLink.download = 'output.csv';
+
+    // Append the anchor element to the body
+    document.body.appendChild(tempLink);
+
+    // Trigger a click on the anchor element
+    tempLink.click();
+
+    // Remove the temporary anchor element from the DOM
+    document.body.removeChild(tempLink);
+
+    // Revoke the Blob URL to free up resources
+    URL.revokeObjectURL(url);
+
+    document.getElementById('status').innerHTML = `Status: Finished!`
+    document.getElementById("startbutton").disabled = false
+    return true
+}
+
+function updateStart() {
+  // Get the minimum value and update the minimum for maxValue
+  const startValue = parseFloat(document.getElementById("startpage").value);
+  const endValue = parseFloat(document.getElementById("endpage").value);
+
+  document.getElementById("startpage").value = Math.min(startValue, endValue)
+}
+
+function updateEnd() {
+  // Get the minimum value and update the minimum for maxValue
+  const startValue = parseFloat(document.getElementById("startpage").value);
+  const endValue = parseFloat(document.getElementById("endpage").value);
+
+  document.getElementById("endpage").value = Math.max(startValue, endValue)
+}
+
 async function seed(link,apikey){
     gamemode = document.querySelector('input[name="gamemode"]:checked').value
     output = document.querySelector('input[name="output"]:checked').value
@@ -131,6 +204,13 @@ async function queryPlayer(player, gamemode) {
   .then(r => { return r.json() }).catch(err => console.log(err));
 }
 
+//Queries the brawlhalla esports api for a pr list
+//https://www.docs.brawltools.com/get/player/pr
+async function queryPRList(gamemode, region, page) {
+  return await fetch(`https://api.brawltools.com/v1/pr?gameMode=${gamemode}&region=${region}&page=${page}`)
+  .then(r => { return r.json() }).catch(err => console.log(err));
+}
+
 //Gets the number of entrants in a tournament for future use
 //Additionally checks to make sure apikey and tournament link are valid
 async function verifyTournamentLink(slug, apikey, output) {
@@ -230,6 +310,23 @@ async function getIDList(slug, page, apikey) {
     return data.data;
 }
 
+//Gets the discriminator of a player id
+async function getDiscrim(id, apikey) {
+  query = `query PlayerQuery ($id: ID!){
+    player(id: $id){
+      user{
+        discriminator
+      }
+    }
+  }`;
+  variables = {
+    "id": id
+  }
+  
+  data = await queryAPI(query, variables, apikey)
+  return data.data.player.user.discriminator;
+}
+
 //Queries the start.gg API with a given query, variables, and api key
 //Returns json output. 
 //Read more at https://developer.start.gg/docs/intro
@@ -262,4 +359,10 @@ async function doSeeding(phaseId, seedMapping, apikey){
 
   data = await queryAPI(query, variables, apikey)
   return data.data;
+}
+
+async function delay(milliseconds){
+  return new Promise(resolve => {
+      setTimeout(resolve, milliseconds);
+  });
 }
